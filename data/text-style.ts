@@ -106,7 +106,7 @@ export function validateTextStyle(style: Partial<TextStyleModel>): string[] {
 // ===== Factory =====
 
 export function createTextStyle(
-  overrides: Partial<TextStyleModel> = {}
+  overrides: Partial<TextStyleModel> = {},
 ): TextStyleModel {
   return {
     ...DEFAULT_TEXT_STYLE,

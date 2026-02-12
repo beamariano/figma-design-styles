@@ -3,8 +3,8 @@ export {
   COMMON_FONT_STYLES,
   createTextStyle,
   validateTextStyle,
-} from "./text-style";
+} from "../data/text-style";
 
-export { SAMPLE_TEXT_STYLES } from "./sample";
+export { SAMPLE_TEXT_STYLES } from "../data/sample";
 
-export { SAMPLE_COLOR_TOKENS } from "./color-tokens";
+export { SAMPLE_COLOR_TOKENS } from "../data/color-tokens";
