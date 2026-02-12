@@ -4,3 +4,5 @@ export {
   createTextStyle,
   validateTextStyle,
 } from "./text-style";
+
+export { SAMPLE_TEXT_STYLES } from "./sample";

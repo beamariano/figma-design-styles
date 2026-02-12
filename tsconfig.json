@@ -1,11 +1,15 @@
 {
   "compilerOptions": {
     "target": "es6",
-    "lib": ["es6"],
+    "lib": ["es2020"],
+    "module": "es2020",
+    "moduleResolution": "bundler",
     "strict": true,
+    "noEmit": true,
     "typeRoots": [
       "./node_modules/@types",
       "./node_modules/@figma"
-    ]
+    ],
+    "types": ["plugin-typings"]
   }
 }
