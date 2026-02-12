@@ -10,13 +10,19 @@ export { FALLBACK_FONT };
 
 export default async function createTextStyles(
   styles: TextStyleModel[],
-): Promise<{ created: number; errors: string[]; missingFonts: string[] }> {
+): Promise<{ created: number; skipped: number; errors: string[]; missingFonts: string[] }> {
   let created = 0;
+  let skipped = 0;
   const missingFontSet = new Set<string>();
   const errors: string[] = [];
 
   // Pre-load the fallback font
   await figma.loadFontAsync(FALLBACK_FONT);
+
+  // Build a set of existing style names to skip duplicates
+  const existingNames = new Set(
+    (await figma.getLocalTextStylesAsync()).map((s) => s.name),
+  );
 
   const total = styles.length;
   let notice = figma.notify(`Creating text styles: 0 of ${total}…`, {
@@ -26,6 +32,16 @@ export default async function createTextStyles(
   for (const def of styles) {
     // Yield to let the UI thread render notification updates
     await delay(0);
+
+    if (existingNames.has(def.name)) {
+      skipped++;
+      notice.cancel();
+      notice = figma.notify(
+        `Creating text styles: ${created} of ${total} (${skipped} skipped)…`,
+        { timeout: Infinity },
+      );
+      continue;
+    }
 
     let fontToUse = def.fontName;
     try {
@@ -94,5 +110,5 @@ export default async function createTextStyles(
 
   notice.cancel();
 
-  return { created, errors, missingFonts: [...missingFontSet] };
+  return { created, skipped, errors, missingFonts: [...missingFontSet] };
 }

@@ -31,43 +31,17 @@ function formatDetails(style: TextStyleModel): string {
   return parts.join("  ·  ");
 }
 
-function uniqueFonts(styles: TextStyleModel[]): FontName[] {
-  const seen = new Set<string>();
-  const fonts: FontName[] = [];
-  for (const s of styles) {
-    const key = `${s.fontName.family}::${s.fontName.style}`;
-    if (!seen.has(key)) {
-      seen.add(key);
-      fonts.push(s.fontName);
-    }
-  }
-  return fonts;
-}
-
 export default async function createTextDisplayFrame(
   styles: TextStyleModel[],
+  components: Map<string, ComponentNode>,
 ): Promise<FrameNode> {
   const UI_FONT: FontName = { family: "Inter", style: "Regular" };
   const UI_FONT_BOLD: FontName = { family: "Inter", style: "Bold" };
 
-  // Load all fonts needed: style fonts + UI fonts
-  const allFonts = uniqueFonts(styles);
-  allFonts.push(UI_FONT, UI_FONT_BOLD);
-
-  const loadResults = await Promise.allSettled(
-    allFonts.map((f) => figma.loadFontAsync(f)),
-  );
-
-  // Track which fonts loaded successfully
-  const loadedFonts = new Set<string>();
-  allFonts.forEach((f, i) => {
-    if (loadResults[i].status === "fulfilled") {
-      loadedFonts.add(`${f.family}::${f.style}`);
-    }
-  });
-
-  const hasFontLoaded = (f: FontName) =>
-    loadedFonts.has(`${f.family}::${f.style}`);
+  await Promise.allSettled([
+    figma.loadFontAsync(UI_FONT),
+    figma.loadFontAsync(UI_FONT_BOLD),
+  ]);
 
   // Main frame
   const frame = figma.createFrame();
@@ -83,14 +57,12 @@ export default async function createTextDisplayFrame(
   frame.fills = [{ type: "SOLID", color: { r: 1, g: 1, b: 1 } }];
 
   // Title
-  if (hasFontLoaded(UI_FONT_BOLD)) {
-    const title = figma.createText();
-    title.fontName = UI_FONT_BOLD;
-    title.characters = "Text Styles";
-    title.fontSize = 32;
-    title.fills = [{ type: "SOLID", color: { r: 0.1, g: 0.1, b: 0.1 } }];
-    frame.appendChild(title);
-  }
+  const title = figma.createText();
+  title.fontName = UI_FONT_BOLD;
+  title.characters = "Text Styles";
+  title.fontSize = 32;
+  title.fills = [{ type: "SOLID", color: { r: 0.1, g: 0.1, b: 0.1 } }];
+  frame.appendChild(title);
 
   // Divider
   const divider = figma.createRectangle();
@@ -101,11 +73,8 @@ export default async function createTextDisplayFrame(
 
   // Style rows
   for (const style of styles) {
-    const styleFont = style.fontName;
-    const canShowPreview = hasFontLoaded(styleFont);
-    const canShowDetails = hasFontLoaded(UI_FONT);
-
-    if (!canShowPreview && !canShowDetails) continue;
+    const component = components.get(style.name);
+    if (!component) continue;
 
     // Row container
     const row = figma.createFrame();
@@ -116,28 +85,12 @@ export default async function createTextDisplayFrame(
     row.itemSpacing = 6;
     row.fills = [];
 
-    // Style name as preview (using the actual font)
-    if (canShowPreview) {
-      const preview = figma.createText();
-      preview.fontName = styleFont;
-      preview.fontSize = style.fontSize;
-      preview.characters = style.name;
-      preview.letterSpacing = style.letterSpacing;
-      if (style.lineHeight.unit !== "AUTO") {
-        preview.lineHeight = style.lineHeight;
-      }
-      preview.textCase = style.textCase;
-      preview.textDecoration = style.textDecoration;
-      preview.fills = [{ type: "SOLID", color: { r: 0.1, g: 0.1, b: 0.1 } }];
-      row.appendChild(preview);
-
-      const textComponent = figma.createComponentFromNode(preview);
-      textComponent.name = style.name;
-      row.appendChild(textComponent);
-    }
+    // Instance of the original component as preview
+    const instance = component.createInstance();
+    row.appendChild(instance);
 
     // Description
-    if (canShowDetails && style.description) {
+    if (style.description) {
       const desc = figma.createText();
       desc.fontName = UI_FONT;
       desc.fontSize = 12;
@@ -147,14 +100,12 @@ export default async function createTextDisplayFrame(
     }
 
     // Details line
-    if (canShowDetails) {
-      const details = figma.createText();
-      details.fontName = UI_FONT;
-      details.fontSize = 11;
-      details.characters = formatDetails(style);
-      details.fills = [{ type: "SOLID", color: { r: 0.4, g: 0.4, b: 0.4 } }];
-      row.appendChild(details);
-    }
+    const details = figma.createText();
+    details.fontName = UI_FONT;
+    details.fontSize = 11;
+    details.characters = formatDetails(style);
+    details.fills = [{ type: "SOLID", color: { r: 0.4, g: 0.4, b: 0.4 } }];
+    row.appendChild(details);
 
     frame.appendChild(row);
   }

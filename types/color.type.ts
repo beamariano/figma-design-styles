@@ -9,5 +9,6 @@ export type ThemeColors = {
   [name: string]: {
     light: string;
     dark: string;
+    description?: string;
   };
 };
