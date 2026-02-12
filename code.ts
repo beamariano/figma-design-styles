@@ -94,7 +94,10 @@ async function createFigmaTextStyles(
       if (def.lineHeight.unit === "AUTO") {
         ts.lineHeight = { unit: "AUTO" };
       } else {
-        ts.lineHeight = { unit: def.lineHeight.unit, value: def.lineHeight.value };
+        ts.lineHeight = {
+          unit: def.lineHeight.unit,
+          value: def.lineHeight.value,
+        };
       }
 
       ts.paragraphIndent = def.paragraphIndent;
@@ -103,10 +106,26 @@ async function createFigmaTextStyles(
       ts.textDecoration = def.textDecoration;
 
       // These properties may not exist in older plugin API versions
-      try { ts.listSpacing = def.listSpacing; } catch { /* unsupported */ }
-      try { ts.leadingTrim = def.leadingTrim; } catch { /* unsupported */ }
-      try { ts.hangingPunctuation = def.hangingPunctuation; } catch { /* unsupported */ }
-      try { ts.hangingList = def.hangingList; } catch { /* unsupported */ }
+      try {
+        ts.listSpacing = def.listSpacing;
+      } catch {
+        /* unsupported */
+      }
+      try {
+        ts.leadingTrim = def.leadingTrim;
+      } catch {
+        /* unsupported */
+      }
+      try {
+        ts.hangingPunctuation = def.hangingPunctuation;
+      } catch {
+        /* unsupported */
+      }
+      try {
+        ts.hangingList = def.hangingList;
+      } catch {
+        /* unsupported */
+      }
 
       created++;
     } catch (e) {
@@ -212,6 +231,10 @@ async function createDisplayFrame(
       preview.textDecoration = style.textDecoration;
       preview.fills = [{ type: "SOLID", color: { r: 0.1, g: 0.1, b: 0.1 } }];
       row.appendChild(preview);
+
+      const textComponent = figma.createComponentFromNode(preview);
+      textComponent.name = style.name;
+      row.appendChild(textComponent);
     }
 
     // Description
