@@ -12,3 +12,5 @@ export type {
   TextStyleBoundVariables,
   TextStyleModel,
 } from "./text-style";
+
+export type { Color, ThemeColors } from "./color.type";

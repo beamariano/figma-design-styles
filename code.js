@@ -443,6 +443,135 @@
     }
   ];
 
+  // models/color-tokens.ts
+  var SAMPLE_COLOR_TOKENS = {
+    primary: {
+      light: "#ffffff",
+      dark: "#000000"
+    },
+    background: {
+      light: "#f5f5f5",
+      dark: "#111111"
+    }
+  };
+
+  // utils/hex-to-rgba.ts
+  function hexToRgba(hex) {
+    const cleaned = hex.replace("#", "");
+    const bigint = parseInt(cleaned, 16);
+    const r = bigint >> 16 & 255;
+    const g = bigint >> 8 & 255;
+    const b = bigint & 255;
+    return { r: r / 255, g: g / 255, b: b / 255 };
+  }
+  var hex_to_rgba_default = hexToRgba;
+
+  // utils/create-color-variables.ts
+  function createColorVariables(data) {
+    const collection = figma.variables.createVariableCollection("Design Tokens");
+    collection.renameMode(collection.modes[0].modeId, "Light");
+    const lightModeId = collection.modes[0].modeId;
+    const darkModeId = collection.addMode("Dark");
+    for (const [name, value] of Object.entries(data)) {
+      const variable = figma.variables.createVariable(
+        name,
+        collection.id,
+        "COLOR"
+      );
+      variable.setValueForMode(lightModeId, hex_to_rgba_default(value.light));
+      variable.setValueForMode(darkModeId, hex_to_rgba_default(value.dark));
+    }
+  }
+  var create_color_variables_default = createColorVariables;
+
+  // utils/create-color-display-frame.ts
+  var UI_FONT = { family: "Inter", style: "Regular" };
+  var UI_FONT_BOLD = { family: "Inter", style: "Bold" };
+  var SWATCH_SIZE = 64;
+  var FRAME_PADDING = 48;
+  var SWATCH_GAP = 16;
+  function createSwatch(hex, label) {
+    const rgb = hex_to_rgba_default(hex);
+    const wrapper = figma.createFrame();
+    wrapper.name = label;
+    wrapper.layoutMode = "VERTICAL";
+    wrapper.primaryAxisSizingMode = "AUTO";
+    wrapper.counterAxisSizingMode = "AUTO";
+    wrapper.itemSpacing = 6;
+    wrapper.fills = [];
+    const rect = figma.createRectangle();
+    rect.name = `${label} swatch`;
+    rect.resize(SWATCH_SIZE, SWATCH_SIZE);
+    rect.cornerRadius = 8;
+    rect.fills = [{ type: "SOLID", color: rgb }];
+    rect.strokes = [{ type: "SOLID", color: { r: 0.85, g: 0.85, b: 0.85 } }];
+    rect.strokeWeight = 1;
+    wrapper.appendChild(rect);
+    const text = figma.createText();
+    text.fontName = UI_FONT;
+    text.fontSize = 11;
+    text.characters = hex.toUpperCase();
+    text.fills = [{ type: "SOLID", color: { r: 0.4, g: 0.4, b: 0.4 } }];
+    wrapper.appendChild(text);
+    return wrapper;
+  }
+  function createColorDisplayFrame(tokens) {
+    return __async(this, null, function* () {
+      yield figma.loadFontAsync(UI_FONT);
+      yield figma.loadFontAsync(UI_FONT_BOLD);
+      const frame = figma.createFrame();
+      frame.name = "Color Variables Reference";
+      frame.layoutMode = "VERTICAL";
+      frame.primaryAxisSizingMode = "AUTO";
+      frame.counterAxisSizingMode = "AUTO";
+      frame.paddingTop = FRAME_PADDING;
+      frame.paddingBottom = FRAME_PADDING;
+      frame.paddingLeft = FRAME_PADDING;
+      frame.paddingRight = FRAME_PADDING;
+      frame.itemSpacing = 40;
+      frame.fills = [{ type: "SOLID", color: { r: 1, g: 1, b: 1 } }];
+      const title = figma.createText();
+      title.fontName = UI_FONT_BOLD;
+      title.characters = "Color Variables";
+      title.fontSize = 32;
+      title.fills = [{ type: "SOLID", color: { r: 0.1, g: 0.1, b: 0.1 } }];
+      frame.appendChild(title);
+      const divider = figma.createRectangle();
+      divider.name = "Divider";
+      divider.resize(600, 1);
+      divider.fills = [{ type: "SOLID", color: { r: 0.85, g: 0.85, b: 0.85 } }];
+      frame.appendChild(divider);
+      for (const [name, value] of Object.entries(tokens)) {
+        const row = figma.createFrame();
+        row.name = name;
+        row.layoutMode = "VERTICAL";
+        row.primaryAxisSizingMode = "AUTO";
+        row.counterAxisSizingMode = "AUTO";
+        row.itemSpacing = 12;
+        row.fills = [];
+        const label = figma.createText();
+        label.fontName = UI_FONT_BOLD;
+        label.fontSize = 14;
+        label.characters = name;
+        label.fills = [{ type: "SOLID", color: { r: 0.1, g: 0.1, b: 0.1 } }];
+        row.appendChild(label);
+        const swatchRow = figma.createFrame();
+        swatchRow.name = `${name} swatches`;
+        swatchRow.layoutMode = "HORIZONTAL";
+        swatchRow.primaryAxisSizingMode = "AUTO";
+        swatchRow.counterAxisSizingMode = "AUTO";
+        swatchRow.itemSpacing = SWATCH_GAP;
+        swatchRow.fills = [];
+        swatchRow.appendChild(createSwatch(value.light, "Light"));
+        swatchRow.appendChild(createSwatch(value.dark, "Dark"));
+        row.appendChild(swatchRow);
+        frame.appendChild(row);
+      }
+      figma.currentPage.appendChild(frame);
+      return frame;
+    });
+  }
+
   // code.ts
   function formatLineHeight(lh) {
     if (lh.unit === "AUTO") return "Auto";
@@ -556,10 +685,10 @@
   }
   function createDisplayFrame(styles) {
     return __async(this, null, function* () {
-      const UI_FONT = { family: "Inter", style: "Regular" };
-      const UI_FONT_BOLD = { family: "Inter", style: "Bold" };
+      const UI_FONT2 = { family: "Inter", style: "Regular" };
+      const UI_FONT_BOLD2 = { family: "Inter", style: "Bold" };
       const allFonts = uniqueFonts(styles);
-      allFonts.push(UI_FONT, UI_FONT_BOLD);
+      allFonts.push(UI_FONT2, UI_FONT_BOLD2);
       const loadResults = yield Promise.allSettled(
         allFonts.map((f) => figma.loadFontAsync(f))
       );
@@ -581,9 +710,9 @@
       frame.paddingRight = 48;
       frame.itemSpacing = 40;
       frame.fills = [{ type: "SOLID", color: { r: 1, g: 1, b: 1 } }];
-      if (hasFontLoaded(UI_FONT_BOLD)) {
+      if (hasFontLoaded(UI_FONT_BOLD2)) {
         const title = figma.createText();
-        title.fontName = UI_FONT_BOLD;
+        title.fontName = UI_FONT_BOLD2;
         title.characters = "Text Styles";
         title.fontSize = 32;
         title.fills = [{ type: "SOLID", color: { r: 0.1, g: 0.1, b: 0.1 } }];
@@ -597,7 +726,7 @@
       for (const style of styles) {
         const styleFont = style.fontName;
         const canShowPreview = hasFontLoaded(styleFont);
-        const canShowDetails = hasFontLoaded(UI_FONT);
+        const canShowDetails = hasFontLoaded(UI_FONT2);
         if (!canShowPreview && !canShowDetails) continue;
         const row = figma.createFrame();
         row.name = style.name;
@@ -625,7 +754,7 @@
         }
         if (canShowDetails && style.description) {
           const desc = figma.createText();
-          desc.fontName = UI_FONT;
+          desc.fontName = UI_FONT2;
           desc.fontSize = 12;
           desc.characters = style.description;
           desc.fills = [{ type: "SOLID", color: { r: 0.5, g: 0.5, b: 0.5 } }];
@@ -633,7 +762,7 @@
         }
         if (canShowDetails) {
           const details = figma.createText();
-          details.fontName = UI_FONT;
+          details.fontName = UI_FONT2;
           details.fontSize = 11;
           details.characters = formatDetails(style);
           details.fills = [{ type: "SOLID", color: { r: 0.4, g: 0.4, b: 0.4 } }];
@@ -648,15 +777,20 @@
   function main() {
     return __async(this, null, function* () {
       const styles = SAMPLE_TEXT_STYLES;
+      const colorTokens = SAMPLE_COLOR_TOKENS;
       const { created, errors, missingFonts } = yield createFigmaTextStyles(styles);
       console.log(`Created ${created} text styles`);
       if (errors.length > 0) {
         console.error("Errors:", errors);
       }
-      const frame = yield createDisplayFrame(styles);
-      figma.currentPage.selection = [frame];
-      figma.viewport.scrollAndZoomIntoView([frame]);
-      let message = `Created ${created} of ${styles.length} text styles`;
+      const textFrame = yield createDisplayFrame(styles);
+      create_color_variables_default(colorTokens);
+      const colorFrame = yield createColorDisplayFrame(colorTokens);
+      colorFrame.x = textFrame.x + textFrame.width + 100;
+      colorFrame.y = textFrame.y;
+      figma.currentPage.selection = [textFrame, colorFrame];
+      figma.viewport.scrollAndZoomIntoView([textFrame, colorFrame]);
+      let message = `Created ${created} of ${styles.length} text styles \xB7 ${Object.keys(colorTokens).length} color variables`;
       if (errors.length > 0) {
         message += `
 

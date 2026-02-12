@@ -6,3 +6,5 @@ export {
 } from "./text-style";
 
 export { SAMPLE_TEXT_STYLES } from "./sample";
+
+export { SAMPLE_COLOR_TOKENS } from "./color-tokens";
