@@ -646,34 +646,68 @@
   var hex_to_rgba_default = hexToRgba;
 
   // utils/create-color-variables.ts
+  function delay2(ms) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
   function createColorVariables(data) {
-    const collection = figma.variables.createVariableCollection("Design Tokens");
-    collection.renameMode(collection.modes[0].modeId, "Light");
-    const lightModeId = collection.modes[0].modeId;
-    const darkModeId = collection.addMode("Dark");
-    const entries = Object.entries(data);
-    const total = entries.length;
-    let created = 0;
-    let notice = figma.notify(`Creating color variables: 0 of ${total}\u2026`, {
-      timeout: Infinity
-    });
-    for (const [name, value] of entries) {
-      const variable = figma.variables.createVariable(
-        name,
-        collection.id,
-        "COLOR"
+    return __async(this, null, function* () {
+      let created = 0;
+      let skipped = 0;
+      const errors = [];
+      const existingNames = new Set(
+        (yield figma.getLocalPaintStylesAsync()).map((s) => s.name)
       );
-      variable.setValueForMode(lightModeId, hex_to_rgba_default(value.light));
-      variable.setValueForMode(darkModeId, hex_to_rgba_default(value.dark));
-      created++;
-      notice.cancel();
-      notice = figma.notify(`Creating color variables: ${created} of ${total}\u2026`, {
+      const entries = Object.entries(data);
+      const total = entries.length * 2;
+      let notice = figma.notify(`Creating color styles: 0 of ${total}\u2026`, {
         timeout: Infinity
       });
-    }
-    notice.cancel();
+      for (const [name, value] of entries) {
+        yield delay2(0);
+        const lightName = `${name}/Light`;
+        if (existingNames.has(lightName)) {
+          skipped++;
+        } else {
+          try {
+            const ps = figma.createPaintStyle();
+            ps.name = lightName;
+            if (value.description) ps.description = value.description;
+            ps.paints = [{ type: "SOLID", color: hex_to_rgba_default(value.light) }];
+            created++;
+          } catch (e) {
+            errors.push(`Failed to create "${lightName}": ${e}`);
+          }
+        }
+        notice.cancel();
+        notice = figma.notify(
+          `Creating color styles: ${created + skipped} of ${total}\u2026`,
+          { timeout: Infinity }
+        );
+        yield delay2(0);
+        const darkName = `${name}/Dark`;
+        if (existingNames.has(darkName)) {
+          skipped++;
+        } else {
+          try {
+            const ps = figma.createPaintStyle();
+            ps.name = darkName;
+            if (value.description) ps.description = value.description;
+            ps.paints = [{ type: "SOLID", color: hex_to_rgba_default(value.dark) }];
+            created++;
+          } catch (e) {
+            errors.push(`Failed to create "${darkName}": ${e}`);
+          }
+        }
+        notice.cancel();
+        notice = figma.notify(
+          `Creating color styles: ${created + skipped} of ${total}\u2026`,
+          { timeout: Infinity }
+        );
+      }
+      notice.cancel();
+      return { created, skipped, errors };
+    });
   }
-  var create_color_variables_default = createColorVariables;
 
   // utils/create-color-components-frame.ts
   var SWATCH_SIZE = 64;
@@ -927,11 +961,7 @@
       const textFrame = yield createTextDisplayFrame(styles, components);
       componentsFrame.x = textFrame.x + textFrame.width + 100;
       componentsFrame.y = textFrame.y;
-      try {
-        create_color_variables_default(colorTokens);
-      } catch (e) {
-        console.error("Color variable creation failed:", e);
-      }
+      const colorResult = yield createColorVariables(colorTokens);
       const { frame: colorComponentsFrame, components: colorComponents } = yield createColorComponentsFrame(colorTokens);
       const colorFrame = yield createColorDisplayFrame(colorTokens, colorComponents);
       colorComponentsFrame.x = componentsFrame.x + componentsFrame.width + 100;
@@ -940,16 +970,20 @@
       colorFrame.y = textFrame.y;
       figma.currentPage.selection = [textFrame, componentsFrame, colorComponentsFrame, colorFrame];
       figma.viewport.scrollAndZoomIntoView([textFrame, componentsFrame, colorComponentsFrame, colorFrame]);
+      const allErrors = [...errors, ...colorResult.errors];
       let message = `Created ${created} of ${styles.length} text styles`;
       if (skipped > 0) {
         message += ` (${skipped} duplicates skipped)`;
       }
-      message += ` \xB7 ${Object.keys(colorTokens).length} color variables`;
-      if (errors.length > 0) {
+      message += ` \xB7 ${colorResult.created} color styles`;
+      if (colorResult.skipped > 0) {
+        message += ` (${colorResult.skipped} skipped)`;
+      }
+      if (allErrors.length > 0) {
         message += `
 
 Errors:
-\u2022 ${errors.join("\n\u2022 ")}`;
+\u2022 ${allErrors.join("\n\u2022 ")}`;
       }
       if (missingFonts.length > 0) {
         message += `

@@ -24,12 +24,8 @@ async function main() {
   componentsFrame.x = textFrame.x + textFrame.width + 100;
   componentsFrame.y = textFrame.y;
 
-  // Color variables
-  try {
-    createColorVariables(colorTokens);
-  } catch (e) {
-    console.error("Color variable creation failed:", e);
-  }
+  // Color paint styles
+  const colorResult = await createColorVariables(colorTokens);
 
   // Color components first (originals), then reference frame (instances)
   const { frame: colorComponentsFrame, components: colorComponents } =
@@ -45,13 +41,18 @@ async function main() {
   figma.currentPage.selection = [textFrame, componentsFrame, colorComponentsFrame, colorFrame];
   figma.viewport.scrollAndZoomIntoView([textFrame, componentsFrame, colorComponentsFrame, colorFrame]);
 
+  const allErrors = [...errors, ...colorResult.errors];
+
   let message = `Created ${created} of ${styles.length} text styles`;
   if (skipped > 0) {
     message += ` (${skipped} duplicates skipped)`;
   }
-  message += ` · ${Object.keys(colorTokens).length} color variables`;
-  if (errors.length > 0) {
-    message += `\n\nErrors:\n• ${errors.join("\n• ")}`;
+  message += ` · ${colorResult.created} color styles`;
+  if (colorResult.skipped > 0) {
+    message += ` (${colorResult.skipped} skipped)`;
+  }
+  if (allErrors.length > 0) {
+    message += `\n\nErrors:\n• ${allErrors.join("\n• ")}`;
   }
   if (missingFonts.length > 0) {
     message += `\n\nMissing fonts (used ${FALLBACK_FONT.family} ${FALLBACK_FONT.style} as fallback):\n• ${missingFonts.join("\n• ")}`;
